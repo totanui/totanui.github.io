@@ -4,9 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>totanui.github.io</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a2e;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        h1 { color: #00d2ff; }
+        p { color: #aaa; margin-bottom: 24px; }
+        a.game-link {
+            display: inline-block;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #00d2ff, #3a7bd5);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            transition: transform 0.1s;
+        }
+        a.game-link:active { transform: scale(0.95); }
+    </style>
 </head>
 <body>
     <h1>Welcome to totanui.github.io</h1>
     <p>This is a simple GitHub Pages site.</p>
+    <a href="game.html" class="game-link">🐍 Play Snake</a>
 </body>
 </html>
