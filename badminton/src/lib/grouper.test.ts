@@ -535,6 +535,25 @@ describe('generateRound', () => {
         expect(scoreRound(history, round)).toBe(0);
       }
     });
+
+    it('first round is not always the same grouping (shuffle)', () => {
+      const players = makePlayers(6);
+      const seen = new Set<string>();
+
+      for (let trial = 0; trial < 20; trial++) {
+        const round = generateRound(players, createHistory());
+        const key = [
+          round.court1.side1.players.map(p => p.id).sort().join(','),
+          round.court1.side2.players.map(p => p.id).sort().join(','),
+          round.court2.side1.players.map(p => p.id).sort().join(','),
+          round.court2.side2.players.map(p => p.id).sort().join(','),
+        ].sort().join('|');
+        seen.add(key);
+      }
+
+      // With shuffling, 20 trials on 6 players should produce multiple distinct groupings
+      expect(seen.size).toBeGreaterThan(1);
+    });
   });
 });
 

@@ -151,9 +151,21 @@ function assignmentToRound(groups: Player[][]): Round {
   };
 }
 
+/** Fisher-Yates shuffle (returns a new array) */
+function shuffled<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 /**
  * Generate the best next round for the given players and history.
  * Enumerates all valid groupings and picks the one with the lowest score.
+ * Players are shuffled before enumeration so that the first zero-scoring
+ * grouping found differs between sessions.
  */
 export function generateRound(players: Player[], history: MatchHistory): Round {
   const count = players.length;
@@ -162,11 +174,12 @@ export function generateRound(players: Player[], history: MatchHistory): Round {
   }
 
   const format = getCourtFormat(count);
+  const shuffledPlayers = shuffled(players);
 
   let bestRound: Round | null = null;
   let bestScore = Infinity;
 
-  for (const assignment of generateAssignments(players, format)) {
+  for (const assignment of generateAssignments(shuffledPlayers, format)) {
     const round = assignmentToRound(assignment);
     const s = scoreRound(history, round);
     if (s < bestScore) {
