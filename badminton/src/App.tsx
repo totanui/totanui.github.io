@@ -42,30 +42,28 @@ function RoundView({ round, index }: { round: Round; index: number }) {
   );
 }
 
+function initPlayers(): Player[] {
+  const params = new URLSearchParams(window.location.search);
+  const encoded = params.get('players');
+  if (encoded) {
+    const loaded = decodePlayersFromBase64(encoded);
+    if (loaded.length > 0) {
+      window.history.replaceState({}, '', window.location.pathname);
+      return loaded;
+    }
+  }
+  return loadPlayers();
+}
+
 function App() {
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [activePlayers, setActivePlayers] = useState<Set<string>>(new Set());
+  const [players, setPlayers] = useState<Player[]>(initPlayers);
+  const [activePlayers, setActivePlayers] = useState<Set<string>>(
+    () => new Set(initPlayers().map(p => p.id)),
+  );
   const [inputName, setInputName] = useState('');
   const [rounds, setRounds] = useState<Round[]>([]);
   const [history, setHistory] = useState<MatchHistory>(createHistory);
   const [toast, setToast] = useState('');
-
-  // Load players from URL or localStorage on mount
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const encoded = params.get('players');
-    let loaded: Player[] = [];
-    if (encoded) {
-      loaded = decodePlayersFromBase64(encoded);
-      // Clear URL params after import
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-    if (loaded.length === 0) {
-      loaded = loadPlayers();
-    }
-    setPlayers(loaded);
-    setActivePlayers(new Set(loaded.map(p => p.id)));
-  }, []);
 
   // Persist whenever players change
   useEffect(() => {
@@ -124,18 +122,18 @@ function App() {
     setHistory(createHistory());
   }, []);
 
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2000);
+  }, []);
+
   const handleShare = useCallback(() => {
     const url = buildShareUrl(players);
     navigator.clipboard.writeText(url).then(
       () => showToast('Link copied to clipboard!'),
       () => showToast('Could not copy link'),
     );
-  }, [players]);
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(''), 2000);
-  }
+  }, [players, showToast]);
 
   return (
     <>
