@@ -6,10 +6,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/badminton/',
-  build: {
-    outDir: '.',
-    emptyOutDir: false,
-  },
   test: {
     environment: 'jsdom',
     globals: true,
