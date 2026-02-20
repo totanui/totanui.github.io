@@ -8,6 +8,18 @@ test.describe('Badminton Grouper', () => {
     await page.reload();
   });
 
+  test('page loads without any 404 errors for assets', async ({ page }) => {
+    const failedRequests: string[] = [];
+    page.on('response', (response) => {
+      if (response.status() === 404) {
+        failedRequests.push(response.url());
+      }
+    });
+    await page.goto('/badminton/');
+    await page.waitForLoadState('networkidle');
+    expect(failedRequests, `Expected no 404 errors but got: ${failedRequests.join(', ')}`).toEqual([]);
+  });
+
   test('loads the app with title and subtitle', async ({ page }) => {
     await expect(page.locator('h1')).toContainText('Badminton Grouper');
     await expect(page.locator('.subtitle')).toContainText('2 courts');
