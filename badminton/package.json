@@ -8,11 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run src/",
-    "test:watch": "vitest src/",
-    "test:build": "vitest run build-tests/",
-    "test:e2e": "playwright test",
-    "test:e2e:deploy": "playwright test --config playwright.deploy.config.ts"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "react": "^19.2.0",
