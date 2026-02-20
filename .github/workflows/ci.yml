@@ -25,5 +25,13 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - run: npm run test:build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      - name: Assemble site
+        working-directory: .
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp -r badminton/dist/. _site/badminton/
+      - run: npm run test:e2e:deploy
