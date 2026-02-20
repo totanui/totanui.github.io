@@ -17,7 +17,7 @@ test.describe('Badminton Grouper', () => {
     });
     await page.goto('/badminton/');
     await page.waitForLoadState('networkidle');
-    expect(failedRequests).toEqual([]);
+    expect(failedRequests, `Expected no 404 errors but got: ${failedRequests.join(', ')}`).toEqual([]);
   });
 
   test('loads the app with title and subtitle', async ({ page }) => {
