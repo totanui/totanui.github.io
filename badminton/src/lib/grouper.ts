@@ -71,7 +71,9 @@ export function scoreRound(history: MatchHistory, round: Round): number {
   const SINGLE_WEIGHT = 1_000_000;
   // Priority 1b: Among equal-count singles, prefer players who played single least recently (FIFO)
   const SINGLE_RECENCY_WEIGHT = 1;
-  // Priority 2: Minimize repeat partnerships (must exceed max possible opponent penalty per round)
+  // Priority 2: Minimize repeat partnerships
+  // Weight must exceed max opponent penalty per round (8 pairs × max_count × OPPONENT_WEIGHT)
+  // to ensure partner avoidance always takes strict priority over opponent balancing.
   const PARTNER_WEIGHT = 10_000;
   // Priority 3: Minimize repeat opponents
   const OPPONENT_WEIGHT = 1;
