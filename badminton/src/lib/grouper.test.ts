@@ -73,6 +73,8 @@ describe('createHistory', () => {
     expect(h.singleCounts).toEqual({});
     expect(h.partnerCounts).toEqual({});
     expect(h.opponentCounts).toEqual({});
+    expect(h.lastSingleRound).toEqual({});
+    expect(h.roundsPlayed).toBe(0);
   });
 });
 
@@ -124,6 +126,13 @@ describe('recordRound', () => {
     expect(history.singleCounts['p2']).toBe(1);
     expect(history.singleCounts['p3']).toBe(1);
     expect(history.singleCounts['p4']).toBe(1);
+    // roundsPlayed should be incremented
+    expect(history.roundsPlayed).toBe(1);
+    // lastSingleRound should be set for all singles
+    expect(history.lastSingleRound['p1']).toBe(1);
+    expect(history.lastSingleRound['p2']).toBe(1);
+    expect(history.lastSingleRound['p3']).toBe(1);
+    expect(history.lastSingleRound['p4']).toBe(1);
   });
 
   it('records partnerships correctly for 2v2', () => {
@@ -184,6 +193,9 @@ describe('recordRound', () => {
 
     expect(history.singleCounts['p1']).toBe(2);
     expect(history.opponentCounts[pairKey('p1', 'p2')]).toBe(2);
+    expect(history.roundsPlayed).toBe(2);
+    // lastSingleRound should reflect the most recent round
+    expect(history.lastSingleRound['p1']).toBe(2);
   });
 });
 
@@ -261,6 +273,38 @@ describe('scoreRound', () => {
 
     const score = scoreRound(history, round);
     expect(score).toBeGreaterThanOrEqual(10);
+  });
+
+  it('penalizes more recently single players higher than less recently single (FIFO tiebreaker)', () => {
+    const players = makePlayers(7);
+    // Both p1 and p7 have played single once, but p7 played more recently
+    const history = createHistory();
+    history.singleCounts['p1'] = 1;
+    history.singleCounts['p7'] = 1;
+    history.lastSingleRound['p1'] = 1; // played single in round 1 (long ago)
+    history.lastSingleRound['p7'] = 7; // played single in round 7 (just now)
+    history.roundsPlayed = 7;
+
+    // Build two rounds that are identical except for which player is the single
+    const makeRoundWithSingle = (singlePlayer: (typeof players)[0]) => {
+      const rest = players.filter(p => p !== singlePlayer);
+      return {
+        court1: {
+          side1: { players: [rest[0], rest[1]] },
+          side2: { players: [rest[2], rest[3]] },
+        },
+        court2: {
+          side1: { players: [rest[4], rest[5]] },
+          side2: { players: [singlePlayer] },
+        },
+      };
+    };
+
+    const scoreP1Single = scoreRound(history, makeRoundWithSingle(players[0]));
+    const scoreP7Single = scoreRound(history, makeRoundWithSingle(players[6]));
+
+    // p7 was single most recently so penalised more → algorithm prefers p1
+    expect(scoreP1Single).toBeLessThan(scoreP7Single);
   });
 
   it('singles penalty > partner penalty > opponent penalty', () => {
@@ -553,6 +597,75 @@ describe('generateRound', () => {
 
       // With shuffling, 20 trials on 6 players should produce multiple distinct groupings
       expect(seen.size).toBeGreaterThan(1);
+    });
+
+    it('respects FIFO single order for 7 players: player who played single in round 1 has lower score than round-7 player in round 8', () => {
+      const players = makePlayers(7);
+      const history = createHistory();
+
+      // Track which player was single each round
+      const singleByRound: string[] = [];
+      for (let i = 0; i < 7; i++) {
+        const round = generateRound(players, history);
+        for (const court of [round.court1, round.court2]) {
+          for (const side of [court.side1, court.side2]) {
+            if (side.players.length === 1) {
+              singleByRound.push(side.players[0].id);
+            }
+          }
+        }
+        recordRound(history, round);
+      }
+
+      // After 7 rounds each player has singleCounts=1.
+      // The player who was single in round 1 (singleByRound[0]) should have a lower
+      // singles score than the player who was single in round 7 (singleByRound[6]).
+      const roundOneSingle = singleByRound[0];
+      const roundSevenSingle = singleByRound[6];
+
+      // Both have count=1; the recency weight makes round-7's single costlier
+      const histSingle1 = history.lastSingleRound[roundOneSingle] || 0;
+      const histSingle7 = history.lastSingleRound[roundSevenSingle] || 0;
+      expect(histSingle7).toBeGreaterThan(histSingle1);
+
+      // Verify the scoring function reflects this: the round-7 single player has a
+      // higher penalty (less preferred) than the round-1 single player
+      const makeRoundWithSingle = (singleId: string) => {
+        const singlePlayer = players.find(p => p.id === singleId)!;
+        const rest = players.filter(p => p.id !== singleId);
+        return {
+          court1: {
+            side1: { players: [rest[0], rest[1]] },
+            side2: { players: [rest[2], rest[3]] },
+          },
+          court2: {
+            side1: { players: [rest[4], rest[5]] },
+            side2: { players: [singlePlayer] },
+          },
+        };
+      };
+
+      const scoreRound1Single = scoreRound(history, makeRoundWithSingle(roundOneSingle));
+      const scoreRound7Single = scoreRound(history, makeRoundWithSingle(roundSevenSingle));
+      expect(scoreRound1Single).toBeLessThan(scoreRound7Single);
+    });
+
+    it('distributes singles fairly with 7 players over 14 rounds (two full cycles)', () => {
+      const players = makePlayers(7);
+      const history = createHistory();
+
+      for (let i = 0; i < 14; i++) {
+        const round = generateRound(players, history);
+        recordRound(history, round);
+      }
+
+      // After 14 rounds with 1 single per round, each player should have played
+      // single exactly twice in a perfect scenario
+      const counts = Object.values(history.singleCounts);
+      const maxSingles = Math.max(...counts);
+      const minSingles = Math.min(...counts);
+      // Allow at most 1 difference across two full cycles
+      expect(maxSingles - minSingles).toBeLessThanOrEqual(1);
     });
   });
 });
