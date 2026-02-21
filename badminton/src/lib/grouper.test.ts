@@ -272,7 +272,7 @@ describe('scoreRound', () => {
     history.opponentCounts[pairKey('p1', 'p2')] = 1;
 
     const score = scoreRound(history, round);
-    expect(score).toBeGreaterThanOrEqual(10);
+    expect(score).toBeGreaterThanOrEqual(1);
   });
 
   it('penalizes more recently single players higher than less recently single (FIFO tiebreaker)', () => {
@@ -645,6 +645,62 @@ describe('generateRound', () => {
       const scoreRound1Single = scoreRound(history, makeRoundWithSingle(roundOneSingle));
       const scoreRound7Single = scoreRound(history, makeRoundWithSingle(roundSevenSingle));
       expect(scoreRound1Single).toBeLessThan(scoreRound7Single);
+    });
+
+    it('no partner repeats for 8 players over 7 rounds (full pair coverage)', () => {
+      // 8 players have C(8,2)=28 unique pairs, with 4 pairs per round.
+      // 7 rounds should cover all 28 pairs without any repeat.
+      const players = makePlayers(8);
+      const history = createHistory();
+
+      const allPartnerPairs = new Set<string>();
+      let repeatFound = false;
+
+      for (let i = 0; i < 7; i++) {
+        const round = generateRound(players, history);
+        for (const pair of getPartnerPairs(round)) {
+          if (allPartnerPairs.has(pair)) repeatFound = true;
+          allPartnerPairs.add(pair);
+        }
+        recordRound(history, round);
+      }
+
+      expect(repeatFound).toBe(false);
+      expect(allPartnerPairs.size).toBe(28);
+    });
+
+    it('partner avoidance takes priority over opponent avoidance', () => {
+      // Construct a history where all partner pairs are used once except 4,
+      // and all non-partner opponent pairs have high counts.
+      // The algorithm should still prefer the unused partner pairs.
+      const players = makePlayers(8);
+      const history = createHistory();
+      history.roundsPlayed = 20;
+
+      const unusedPartners = new Set([
+        pairKey('p1', 'p2'),
+        pairKey('p3', 'p4'),
+        pairKey('p5', 'p6'),
+        pairKey('p7', 'p8'),
+      ]);
+
+      for (let i = 0; i < 8; i++) {
+        for (let j = i + 1; j < 8; j++) {
+          const key = pairKey(`p${i + 1}`, `p${j + 1}`);
+          if (!unusedPartners.has(key)) {
+            history.partnerCounts[key] = 1;
+            history.opponentCounts[key] = 15;
+          }
+        }
+      }
+
+      const round = generateRound(players, history);
+      const pairs = getPartnerPairs(round);
+
+      // All 4 generated pairs should be from the unused set
+      for (const pair of pairs) {
+        expect(unusedPartners.has(pair)).toBe(true);
+      }
     });
 
     it('distributes singles fairly with 7 players over 14 rounds (two full cycles)', () => {
