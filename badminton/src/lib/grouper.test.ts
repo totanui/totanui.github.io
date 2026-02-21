@@ -601,45 +601,42 @@ describe('generateRound', () => {
 
     it('respects FIFO single order for 7 players: player who played single in round 1 has lower score than round-7 player in round 8', () => {
       const players = makePlayers(7);
-      const history = createHistory();
 
-      // Track which player was single each round
-      const singleByRound: string[] = [];
-      for (let i = 0; i < 7; i++) {
-        const round = generateRound(players, history);
-        for (const court of [round.court1, round.court2]) {
-          for (const side of [court.side1, court.side2]) {
-            if (side.players.length === 1) {
-              singleByRound.push(side.players[0].id);
-            }
-          }
-        }
-        recordRound(history, round);
+      // Use a controlled history with no partner/opponent counts so that only the
+      // FIFO recency weight affects the score difference between candidate rounds.
+      // Simulating 7 rounds where each player was single exactly once, in order.
+      const history = createHistory();
+      history.roundsPlayed = 7;
+      for (let i = 0; i < players.length; i++) {
+        history.singleCounts[players[i].id] = 1;
+        history.lastSingleRound[players[i].id] = i + 1; // rounds 1–7
       }
 
-      // After 7 rounds each player has singleCounts=1.
-      // The player who was single in round 1 (singleByRound[0]) should have a lower
-      // singles score than the player who was single in round 7 (singleByRound[6]).
-      const roundOneSingle = singleByRound[0];
-      const roundSevenSingle = singleByRound[6];
+      // p1 was single in round 1 (least recently), p7 was single in round 7 (most recently)
+      const roundOneSingle = players[0].id;
+      const roundSevenSingle = players[6].id;
 
       // Both have count=1; the recency weight makes round-7's single costlier
-      const histSingle1 = history.lastSingleRound[roundOneSingle] || 0;
-      const histSingle7 = history.lastSingleRound[roundSevenSingle] || 0;
+      const histSingle1 = history.lastSingleRound[roundOneSingle];
+      const histSingle7 = history.lastSingleRound[roundSevenSingle];
       expect(histSingle7).toBeGreaterThan(histSingle1);
 
       // Verify the scoring function reflects this: the round-7 single player has a
-      // higher penalty (less preferred) than the round-1 single player
+      // higher penalty (less preferred) than the round-1 single player.
+      // The same 5 non-single players occupy the same positions in both candidate
+      // rounds; only the identity of the single player differs, so any
+      // partner/opponent penalties cancel out exactly.
+      const corePlayers = players.filter(p => p.id !== roundOneSingle && p.id !== roundSevenSingle);
       const makeRoundWithSingle = (singleId: string) => {
         const singlePlayer = players.find(p => p.id === singleId)!;
-        const rest = players.filter(p => p.id !== singleId);
+        const courtPartner = singleId === roundOneSingle ? players[6] : players[0];
         return {
           court1: {
-            side1: { players: [rest[0], rest[1]] },
-            side2: { players: [rest[2], rest[3]] },
+            side1: { players: [corePlayers[0], corePlayers[1]] },
+            side2: { players: [corePlayers[2], corePlayers[3]] },
           },
           court2: {
-            side1: { players: [rest[4], rest[5]] },
+            side1: { players: [corePlayers[4], courtPartner] },
             side2: { players: [singlePlayer] },
           },
         };
