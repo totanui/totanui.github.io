@@ -7,7 +7,7 @@ export function pairKey(a: string, b: string): string {
 
 /** Create an empty match history */
 export function createHistory(): MatchHistory {
-  return { singleCounts: {}, partnerCounts: {}, opponentCounts: {}, lastSingleRound: {}, roundsPlayed: 0 };
+  return { singleCounts: {}, partnerCounts: {}, opponentCounts: {}, lastSingleRound: {}, lastPartnerRound: {}, roundsPlayed: 0 };
 }
 
 /** Record a round into the history (mutates history) */
@@ -30,6 +30,7 @@ function recordCourt(history: MatchHistory, court: Court): void {
     if (side.players.length === 2) {
       const key = pairKey(side.players[0].id, side.players[1].id);
       history.partnerCounts[key] = (history.partnerCounts[key] || 0) + 1;
+      history.lastPartnerRound[key] = history.roundsPlayed;
     }
   }
   // Record opponents (every player on side1 vs every player on side2)
@@ -75,6 +76,8 @@ export function scoreRound(history: MatchHistory, round: Round): number {
   // Weight must exceed max opponent penalty per round (8 pairs × max_count × OPPONENT_WEIGHT)
   // to ensure partner avoidance always takes strict priority over opponent balancing.
   const PARTNER_WEIGHT = 10_000;
+  // Priority 2b: Among equal-count partnerships, prefer pairs that partnered least recently (FIFO)
+  const PARTNER_RECENCY_WEIGHT = 29;
   // Priority 3: Minimize repeat opponents
   const OPPONENT_WEIGHT = 1;
 
@@ -89,7 +92,8 @@ export function scoreRound(history: MatchHistory, round: Round): number {
       if (side.players.length === 2) {
         const key = pairKey(side.players[0].id, side.players[1].id);
         const count = history.partnerCounts[key] || 0;
-        score += count * PARTNER_WEIGHT;
+        const lastRound = history.lastPartnerRound[key] || 0;
+        score += count * PARTNER_WEIGHT + lastRound * PARTNER_RECENCY_WEIGHT;
       }
     }
     // Opponents

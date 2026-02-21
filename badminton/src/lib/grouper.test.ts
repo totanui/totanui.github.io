@@ -703,6 +703,30 @@ describe('generateRound', () => {
       }
     });
 
+    it('recycles partner groupings: round 8 with 8 players reuses round-1 partner pairs (FIFO)', () => {
+      // With 8 players and 4 partner pairs per round, all 28 unique pairs are
+      // covered in exactly 7 rounds. Round 8 starts a new cycle and should
+      // prefer the pairs that were used least recently (i.e. round 1's pairs).
+      const players = makePlayers(8);
+      const history = createHistory();
+
+      // Record 7 rounds to exhaust all unique pairs
+      const roundPairs: string[][] = [];
+      for (let i = 0; i < 7; i++) {
+        const round = generateRound(players, history);
+        roundPairs.push(getPartnerPairs(round));
+        recordRound(history, round);
+      }
+
+      // All 28 pairs used once; round 1's pairs have the lowest lastPartnerRound
+      const round1Pairs = new Set(roundPairs[0]);
+      const round8 = generateRound(players, history);
+      const round8Pairs = getPartnerPairs(round8);
+
+      // Round 8 should reuse exactly the same partner pairs as round 1
+      expect(new Set(round8Pairs)).toEqual(round1Pairs);
+    });
+
     it('distributes singles fairly with 7 players over 14 rounds (two full cycles)', () => {
       const players = makePlayers(7);
       const history = createHistory();

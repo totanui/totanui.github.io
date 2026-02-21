@@ -30,6 +30,8 @@ export interface MatchHistory {
   opponentCounts: Record<string, number>;
   /** Map of "playerId" -> round index when that player last played as a single */
   lastSingleRound: Record<string, number>;
+  /** Map of "id1-id2" (sorted) -> round index when that pair last played as partners */
+  lastPartnerRound: Record<string, number>;
   /** Total number of rounds recorded */
   roundsPlayed: number;
 }
