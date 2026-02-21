@@ -7,11 +7,12 @@ export function pairKey(a: string, b: string): string {
 
 /** Create an empty match history */
 export function createHistory(): MatchHistory {
-  return { singleCounts: {}, partnerCounts: {}, opponentCounts: {} };
+  return { singleCounts: {}, partnerCounts: {}, opponentCounts: {}, lastSingleRound: {}, roundsPlayed: 0 };
 }
 
 /** Record a round into the history (mutates history) */
 export function recordRound(history: MatchHistory, round: Round): void {
+  history.roundsPlayed = (history.roundsPlayed || 0) + 1;
   for (const court of [round.court1, round.court2]) {
     recordCourt(history, court);
   }
@@ -23,6 +24,7 @@ function recordCourt(history: MatchHistory, court: Court): void {
     if (side.players.length === 1) {
       const id = side.players[0].id;
       history.singleCounts[id] = (history.singleCounts[id] || 0) + 1;
+      history.lastSingleRound[id] = history.roundsPlayed;
     }
     // Record partnerships (if 2 players on a side)
     if (side.players.length === 2) {
@@ -67,6 +69,8 @@ export function scoreRound(history: MatchHistory, round: Round): number {
 
   // Priority 1: Minimize singles play (highest weight)
   const SINGLE_WEIGHT = 1000;
+  // Priority 1b: Among equal-count singles, prefer players who played single least recently (FIFO)
+  const SINGLE_RECENCY_WEIGHT = 1;
   // Priority 2: Minimize repeat partnerships
   const PARTNER_WEIGHT = 100;
   // Priority 3: Minimize repeat opponents
@@ -77,7 +81,8 @@ export function scoreRound(history: MatchHistory, round: Round): number {
       if (side.players.length === 1) {
         const id = side.players[0].id;
         const count = history.singleCounts[id] || 0;
-        score += count * SINGLE_WEIGHT;
+        const lastRound = history.lastSingleRound[id] || 0;
+        score += count * SINGLE_WEIGHT + lastRound * SINGLE_RECENCY_WEIGHT;
       }
       if (side.players.length === 2) {
         const key = pairKey(side.players[0].id, side.players[1].id);

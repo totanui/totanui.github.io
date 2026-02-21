@@ -109,6 +109,7 @@ function App() {
       newHistory.singleCounts = { ...history.singleCounts };
       newHistory.partnerCounts = { ...history.partnerCounts };
       newHistory.opponentCounts = { ...history.opponentCounts };
+      newHistory.lastSingleRound = { ...history.lastSingleRound };
       recordRound(newHistory, round);
       setHistory(newHistory);
       setRounds(prev => [round, ...prev]);
